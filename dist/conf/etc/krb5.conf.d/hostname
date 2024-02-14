@@ -1,0 +1,22 @@
+[libdefaults]
+  default_realm = MACH.EXAMPLE.TEST
+
+[realms]
+MACH.EXAMPLE.TEST = {
+  udp_preference_limit = 0
+  kdc = 127.88.88.88:88
+  master_kdc = 127.88.88.88:88
+  admin_server = 127.88.88.88:749
+  kpasswd_server = 127.88.88.88:464
+  pkinit_anchors = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+  pkinit_pool = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+}
+
+[domains]
+  kdc.example.test = MACH.EXAMPLE.TEST
+
+[dbmodules]
+MACH.EXAMPLE.TEST = {
+  db_library = klmdb.so
+}
+

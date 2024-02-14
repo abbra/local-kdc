@@ -1,0 +1,195 @@
+# Local KDC experiment
+
+This configuration creates a KDC running on a localhost interface and used
+through SSSD to login to the system.
+
+See files in `dist/conf` (`/root/conf` in the container), they can be copied
+over after changing the machine name:
+
+```
+sed -i "s,MACH.EXAMPLE.TEST,$(hostname -f|tr '[:lower:]' '[:upper:]'),g" /path/to/file
+sed -i "s,mach.example.test,$(hostname -f),g" /path/to/file
+```
+
+## Build container:
+
+```
+$ podman build -t local-kdc .
+```
+
+## Use container:
+
+```
+# podman run -ti -h mach.example.test local-kdc:latest
+```
+
+In a different terminal:
+
+```
+# podman exec -ti `podman ps  -f ancestor=localhost/local-kdc:latest --format "{{.ID}}"` bash
+```
+
+## Configuration inside container:
+
+### Prepare Anonymous PKINIT configuration for the realm:
+
+Certificate issuance using local certmonger's 'Toy' CA:
+
+```
+  # local-getcert request \
+     -K krbtgt/MACH.EXAMPLE.TEST@MACH.EXAMPLE.TEST \
+     -N cn=`hostname -f` \
+     -F /etc/pki/ca-trust/source/anchors/local-ca.crt \
+     -k /var/kerberos/krb5kdc/kdc.key \
+     -f /var/kerberos/krb5kdc/kdc.crt \
+     -U{id-kp-serverAuth,id-pkinit-KPKdc} \
+     -u{digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment}
+```
+
+### Common krb5 configuration
+
+```
+# cat /etc/krb5.conf.d/hostname
+[libdefaults]
+  default_realm = MACH.EXAMPLE.TEST
+
+[realms]
+MACH.EXAMPLE.TEST = {
+  kdc = 127.88.88.88:88
+  master_kdc = 127.88.88.88:88
+  admin_server = 127.88.88.88:749
+  kpasswd_server = 127.88.88.88:464
+  pkinit_anchors = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+  pkinit_pool = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+}
+
+[domains]
+  mach.example.test = MACH.EXAMPLE.TEST
+
+[dbmodules]
+KDC.EXAMPLE.TEST = {
+  db_library = klmdb.so
+}
+```
+
+### KDC configuration
+
+```
+# kdb5_util create -s -r MACH.EXAMPLE.TEST
+```
+
+Create `/var/kerberos/krb5kdc/kdc.conf`:
+
+```
+# cat /var/kerberos/krb5kdc/kdc.conf
+[libdefaults]
+spake_preauth_kdc_challenge = edwards25519
+
+[kdcdefaults]
+    kdc_ports = 88
+    kdc_tcp_ports = 88
+    spake_preauth_kdc_challenge = edwards25519
+    restrict_anonymous_to_tgt = true
+
+[realms]
+MACH.EXAMPLE.TEST = {
+     kadmind_listen = 127.88.88.88:749
+     kpasswd_listen = 127.88.88.88:464
+     kdc_listen = 127.88.88.88:88
+     kdc_tcp_listen = 127.88.88.88:88
+     max_life = 7d
+     max_renewable_life = 14d
+     master_key_type = aes256-cts-hmac-sha384-192
+     acl_file = /var/kerberos/krb5kdc/kadm5.acl
+     dict_file = /usr/share/dict/words
+     default_principal_flags = +preauth
+     admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+     supported_enctypes = aes256-cts-hmac-sha384-192:normal aes128-cts-hmac-sha256-128:normal aes256-cts-hmac-sha1-96:normal aes128-cts-hmac-sha1-96:normal
+     # Supported encryption types for FIPS mode:
+     #supported_enctypes = aes256-cts-hmac-sha384-192:normal aes128-cts-hmac-sha256-128:normal
+     pkinit_anchors = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+     pkinit_pool = FILE:/etc/pki/ca-trust/source/anchors/local-ca.crt
+     pkinit_identity = FILE:/var/kerberos/krb5kdc/kdc.crt,/var/kerberos/krb5kdc/kdc.key
+}
+```
+
+Enable KCM:
+
+```
+# systemctl enable --now sssd-kcm
+```
+
+Create service principals
+
+```
+# kadmin.local -r MACH.EXAMPLE.TEST
+
+> addprinc -randkey WELLKNOWN/ANONYMOUS
+> addprinc -randkey host/mach.example.test
+> ktadd host/kdc.example.test
+> addprinc -randkey cifs/mach.example.test
+> ktadd -k /etc/samba/samba.keytab cifs/mach.example.test
+```
+
+### Create users
+
+Add user to the system:
+```
+# useradd admin -G wheel
+```
+
+Add user to Kerberos:
+
+```
+# kadmin.local -r MACH.EXAMPLE.TEST addprinc admin
+```
+
+This user will be able to perform sudo operations since 'wheel' group is
+configured by default in Fedora sudo rules. With pam_sss_gss Kerberos ticket
+will be used for that instead of a password.
+
+### Configure sssd
+
+```
+# cat /etc/sssd/conf.d/hostname.conf
+[domain/hostname]
+    pam_gssapi_services = sudo, sudo-i
+    pam_gssapi_check_upn = False
+    id_provider = proxy
+    proxy_lib_name = files
+    auth_provider = krb5
+    krb5_server = 127.88.88.88
+    krb5_realm = MACH.EXAMPLE.TEST
+    krb5_keytab = /etc/krb5.keytab
+```
+
+```
+# cat /etc/sssd/sssd.conf
+[sssd]
+           domains = hostname
+           services = nss, pam
+           config_file_version = 2
+
+[nss]
+           filter_groups = root
+           filter_users = root
+
+[pam]
+```
+
+Make sure permissions are correct:
+```
+# chown root:root /etc/sssd/conf.d/hostname.conf /etc/sssd/sssd.conf
+# chmod 0600 /etc/sssd/conf.d/hostname.conf /etc/sssd/sssd.conf
+```
+
+### Configure authselect
+
+```
+# authselect enable-feature with-mkhomedir with-gssapi
+```
+### Start services
+
+```
+# systemctl enable --now krb5kdc sshd sssd smb winbind
+```
