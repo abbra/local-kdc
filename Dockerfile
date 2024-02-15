@@ -18,7 +18,7 @@ RUN echo 'deltarpm = false' >> /etc/dnf/dnf.conf \
         sudo \
         wget vim \
         krb5-server krb5-workstation sssd-krb5 sssd sssd-idp sssd-passkey sssd-tools \
-        samba-client samba samba-winbind \
+        samba-client samba samba-winbind sssd-winbind-idmap \
     && dnf clean all \
     && sed -i 's/.*PermitRootLogin .*/#&/g' /etc/ssh/sshd_config \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
