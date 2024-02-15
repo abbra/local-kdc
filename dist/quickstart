@@ -3,6 +3,8 @@
 This configuration creates a KDC running on a localhost interface and used
 through SSSD to login to the system.
 
+[Demo sessions](demo/README.md)
+
 See files in `dist/conf` (`/root/conf` in the container), they can be copied
 over after changing the machine name:
 
