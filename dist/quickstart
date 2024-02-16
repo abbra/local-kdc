@@ -31,6 +31,36 @@ In a different terminal:
 # podman exec -ti `podman ps  -f ancestor=localhost/local-kdc:latest --format "{{.ID}}"` bash
 ```
 
+## Using pre-built container
+
+Pre-built container is available from `ghcr.io/abbra/local-kdc:main` image that
+is built automatically whenever there is a push to this repository:
+
+```
+$ podman pull ghcr.io/abbra/local-kdc:main
+$ podman create -h mach.example.test ghcr.io/abbra/local-kdc:main
+26e0f5618c678af9525c4138fc820f28f402e699407e774a854f90ce068244c2
+$ podman start 26e0f5618c67
+$ podman exec -ti 26e0f5618c67 bash
+[root@mach /]# ps axf
+    PID TTY      STAT   TIME COMMAND
+    103 pts/0    Ss     0:00 bash
+    122 pts/0    R+     0:00  \_ ps axf
+      1 ?        Ss     0:00 /usr/sbin/init
+     11 ?        Ss     0:00 /usr/lib/systemd/systemd-journald
+     14 ?        Ss     0:00 /usr/lib/systemd/systemd-userdbd
+     15 ?        S      0:00  \_ systemd-userwork
+     18 ?        S      0:00  \_ systemd-userwork
+     19 ?        S      0:00  \_ systemd-userwork
+     27 ?        Ss     0:00 /usr/lib/systemd/systemd-oomd
+     33 ?        Ss     0:00 avahi-daemon: running [mach.local]
+     47 ?        S      0:00  \_ avahi-daemon: chroot helper
+     42 ?        Ss     0:00 /usr/lib/systemd/systemd-logind
+     50 ?        Ss     0:00 /usr/bin/dbus-broker-launch --scope system --audit
+     58 ?        S      0:00  \_ dbus-broker --log 4 --controller 9 --machine-id 26e0f5618c678af9525c4138fc820f28 --max-bytes 536870912 --max-fds 4096 --max-matches 16384 --audit
+     73 ?        Ss     0:00 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+```
+
 ## Configuration inside container:
 
 ### Prepare Anonymous PKINIT configuration for the realm:
