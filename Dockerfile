@@ -17,7 +17,7 @@ RUN echo 'deltarpm = false' >> /etc/dnf/dnf.conf \
         openssh-server \
         sudo \
         wget vim \
-        krb5-server krb5-workstation sssd-krb5 sssd sssd-idp sssd-passkey sssd-tools \
+        krb5-server krb5-workstation sssd-krb5 sssd sssd-kcm sssd-idp sssd-passkey sssd-tools \
         samba-client samba samba-winbind sssd-winbind-idmap certmonger \
     && dnf clean all \
     && sed -i 's/.*PermitRootLogin .*/#&/g' /etc/ssh/sshd_config \

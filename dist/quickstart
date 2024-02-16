@@ -158,7 +158,7 @@ Create service principals
 
 > addprinc -randkey WELLKNOWN/ANONYMOUS
 > addprinc -randkey host/mach.example.test
-> ktadd host/kdc.example.test
+> ktadd host/mach.example.test
 > addprinc -randkey cifs/mach.example.test
 > ktadd -k /etc/samba/samba.keytab cifs/mach.example.test
 ```
@@ -177,7 +177,7 @@ Add user to Kerberos:
 ```
 
 This user will be able to perform sudo operations since 'wheel' group is
-configured by default in Fedora sudo rules. With pam_sss_gss Kerberos ticket
+configured by default in Fedora sudo rules. With `pam_sss_gss` Kerberos ticket
 will be used for that instead of a password.
 
 ### Configure sssd
@@ -217,11 +217,32 @@ Make sure permissions are correct:
 
 ### Configure authselect
 
+To use `pam_sss_gss`, we need to enable `with-gssapi` feature of `sssd` profile
+in `authselect` tool. For demo purposes we also would enable automatic creation
+of home directories on first logon, with `with-mkhomedir` feature:
+
 ```
-# authselect enable-feature with-mkhomedir with-gssapi
+# authselect enable-feature with-mkhomedir
+# authselect enable-feature with-gssapi
 ```
 ### Start services
 
 ```
-# systemctl enable --now krb5kdc sshd sssd smb winbind
+# systemctl enable --now krb5kdc sshd sssd
 ```
+
+### Use services
+
+Login as admin to the system over ssh:
+
+```
+# ssh -l admin `hostname -f`
+```
+
+Check that kerberos ticket was issued:
+
+```
+$ klist
+```
+
+See more details in the [demo page](demo/README.md)
