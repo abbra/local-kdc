@@ -2,7 +2,7 @@ FROM registry.fedoraproject.org/fedora-toolbox:39
 MAINTAINER [FreeIPA Developers freeipa-devel@lists.fedorahosted.org]
 ENV container=docker LANG=en_US.utf8 LANGUAGE=en_US.utf8 LC_ALL=en_US.utf8
 
-ADD dist /root
+COPY dist /root
 RUN echo 'deltarpm = false' >> /etc/dnf/dnf.conf \
     && dnf update -y dnf \
     && dnf update -y python3 \
